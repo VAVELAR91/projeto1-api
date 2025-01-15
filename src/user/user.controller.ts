@@ -1,12 +1,12 @@
 import {
-  Controller,
-  Post,
-  Patch,
-  Body,
   BadRequestException,
+  Body,
+  Controller,
+  Patch,
+  Post,
 } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Users') // Adiciona a tag na documentação do Swagger
 @Controller('users')
