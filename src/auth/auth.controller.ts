@@ -25,8 +25,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login bem-sucedido' })
   @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
   async signIn(@Body() credentials: CredentialsDto) {
-    const user = await this.authService.signIn(credentials);
-    return this.authService.login(user);
+    return await this.authService.signIn(credentials);
   }
 
   @Post('signup')
@@ -38,8 +37,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Conta criada com sucesso' })
   @ApiResponse({ status: 400, description: 'Erro ao criar a conta' })
   async signUp(@Body() credentials: CredentialsCreateDto) {
-    const user = await this.authService.signUp(credentials);
-    return this.authService.login(user);
+    return await this.authService.signUp(credentials);
   }
 
   @Get('me')
