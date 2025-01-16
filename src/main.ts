@@ -5,6 +5,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  if (process.env.NODE_ENV === 'development') {
+    app.enableCors({
+      origin: 'http://localhost:4200', // URL do seu app Angular
+    });
+  }
+
   // Configuração do Swagger
   const config = new DocumentBuilder()
     .setTitle('API de Autenticação')

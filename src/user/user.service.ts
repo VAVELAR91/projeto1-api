@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { UserCreateDTO } from './dto/userCreate.dto';
+import { UserUpdateDTO } from './dto/userUpdate.dto';
 import { User } from './entities/user.entity';
 
 @Injectable()
@@ -10,58 +12,98 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
+  async findAll() {
+    return this.userRepository.find();
+  }
 
-  async createUser(username: string, plainPassword: string) {
-    // Verifica se o nome de usuário já existe
-    const existingUser = await this.userRepository.findOne({
+  async findOneByUsername(username: string) {
+    const user = await this.userRepository.findOne({
       where: { username },
     });
-    if (existingUser) {
-      throw new Error('Usuário já existe');
+    if (!user) {
+      throw new NotFoundException(`User Username ${username} not found`);
+    }
+    return user;
+  }
+
+  async findOneById(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+    if (!user) {
+      throw new NotFoundException(`User ID ${id} not found`);
+    }
+    delete user.password;
+    return user;
+  }
+
+  async create(userData: UserCreateDTO): Promise<User> {
+    let user = await this.userRepository.findOne({
+      where: { username: userData.username },
+    });
+    if (user) {
+      throw new NotFoundException(`User ${userData.username} already exists`);
     }
 
-    // Criptografa a senha
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+    const hashedNewPassword = await bcrypt.hash(userData.password, saltRounds);
 
-    // Cria e salva o novo usuário
-    const newUser = this.userRepository.create({
-      username,
-      password: hashedPassword,
+    user = this.userRepository.create({
+      ...userData,
+      password: hashedNewPassword,
     });
-    return this.userRepository.save(newUser);
+
+    await this.userRepository.save(user);
+
+    return user;
+  }
+
+  async update(id: string, userData: UserUpdateDTO): Promise<User> {
+    const user = await this.userRepository.preload({
+      id,
+      ...userData,
+    });
+    if (!user) {
+      throw new NotFoundException(`User ID ${id} not found`);
+    }
+    return this.userRepository.save(user);
   }
 
   async updatePassword(
-    username: string,
+    id: string,
     currentPassword: string,
     newPassword: string,
-  ) {
-    const user = await this.userRepository.findOne({ where: { username } });
-
+  ): Promise<User> {
+    const user = await this.userRepository.preload({
+      id,
+    });
     if (!user) {
-      throw new Error('Usuário não encontrado');
+      throw new NotFoundException(`User ID ${id} not found`);
     }
 
-    // Verifica se a senha atual está correta
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password,
     );
     if (!isPasswordValid) {
-      throw new Error('Senha atual está incorreta');
+      throw new NotFoundException('The password is currently incorrect');
     }
 
-    // Criptografa a nova senha
     const saltRounds = 10;
     const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    // Atualiza a senha do usuário
-    user.password = hashedNewPassword;
-    return this.userRepository.save(user);
+    this.userRepository.save({ ...user, password: hashedNewPassword });
+
+    return user;
   }
 
-  async findByUsername(username: string): Promise<User | undefined> {
-    return this.userRepository.findOne({ where: { username } });
+  async remove(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+    if (!user) {
+      throw new NotFoundException(`User ID ${id} not found`);
+    }
+    return this.userRepository.remove(user);
   }
 }
