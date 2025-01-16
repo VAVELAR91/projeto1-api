@@ -1,11 +1,21 @@
 import {
-  BadRequestException,
   Body,
   Controller,
-  Patch,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
   Post,
+  Put,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UserCreateDTO } from './dto/userCreate.dto';
+import { UserUpdateDTO } from './dto/userUpdate.dto';
+import {
+  UserSwaggerPost,
+  UserSwaggerPut,
+  UserSwaggerResponse,
+} from './swagger/user';
 import { UserService } from './user.service';
 
 @ApiTags('Users') // Adiciona a tag na documentação do Swagger
@@ -13,70 +23,128 @@ import { UserService } from './user.service';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post('register')
-  @ApiOperation({ summary: 'Cadastrar um novo usuário' })
-  @ApiBody({
-    description: 'Dados para criação de um novo usuário',
-    schema: {
-      type: 'object',
-      properties: {
-        username: { type: 'string', example: 'novoUsuario' },
-        password: { type: 'string', example: 'senha123' },
-      },
-      required: ['username', 'password'],
-    },
+  @Get()
+  @ApiOperation({
+    summary: 'Listar todos os usuários',
+    description:
+      'Retorna uma lista de todos os usuários cadastrados no sistema.',
   })
-  async register(
-    @Body('username') username: string,
-    @Body('password') password: string,
-  ) {
-    if (!username || !password) {
-      throw new BadRequestException('Username e password são obrigatórios');
-    }
-
-    try {
-      const newUser = await this.userService.createUser(username, password);
-      return {
-        message: 'Usuário cadastrado com sucesso',
-        user: { id: newUser.id, username: newUser.username },
-      };
-    } catch (error) {
-      throw new BadRequestException(error.message);
-    }
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuários retornada com sucesso.',
+    type: [UserSwaggerResponse],
+  })
+  findAll() {
+    return this.userService.findAll();
   }
 
-  @Patch('change-password')
-  @ApiOperation({ summary: 'Alterar a senha de um usuário existente' })
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Buscar usuário por ID',
+    description:
+      'Retorna os dados de um usuário específico com base no ID fornecido.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuário encontrado com sucesso.',
+    type: UserSwaggerResponse,
+  })
+  findOneById(@Param('id') id: string) {
+    return this.userService.findOneById(id);
+  }
+
+  @Get(':username/exist')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Verificar existência de usuário',
+    description:
+      'Verifica se um usuário com o username informado existe no sistema.',
+  })
+  @ApiResponse({ status: 204, description: 'Usuário encontrado.' })
+  findOneByUsername(@Param('username') username: string) {
+    return this.userService.findOneByUsername(username);
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Criar um novo usuário',
+    description: 'Cria um novo usuário no sistema com os dados fornecidos.',
+  })
+  @ApiBody({
+    description: 'Dados para criação de um novo usuário',
+    type: UserSwaggerPost,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuário criado com sucesso.',
+    type: UserSwaggerResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos para criação do usuário.',
+  })
+  create(@Body() userData: UserCreateDTO) {
+    return this.userService.create(userData);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Atualizar dados do usuário',
+    description:
+      'Atualiza os dados de um usuário existente com base no ID informado.',
+  })
+  @ApiBody({
+    description: 'Dados para atualização do usuário',
+    type: UserSwaggerPut,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuário atualizado com sucesso.',
+    type: UserSwaggerResponse,
+  })
+  update(
+    @Param('id') id: string,
+    @Body() userData: Omit<UserUpdateDTO, 'password'>,
+  ) {
+    return this.userService.update(id, userData);
+  }
+
+  @Put(':id/change-password')
+  @ApiOperation({
+    summary: 'Alterar a senha de um usuário',
+    description:
+      'Altera a senha de um usuário existente, verificando a senha atual antes da alteração.',
+  })
   @ApiBody({
     description: 'Dados necessários para alterar a senha',
     schema: {
       type: 'object',
       properties: {
-        username: { type: 'string', example: 'testuser' },
-        currentPassword: { type: 'string', example: 'senhaAtual123' },
-        newPassword: { type: 'string', example: 'novaSenha123' },
+        currentPassword: { type: 'string', example: 'senha_atual' },
+        newPassword: { type: 'string', example: 'senha_nova' },
       },
-      required: ['username', 'currentPassword', 'newPassword'],
+      required: ['currentPassword', 'newPassword'],
     },
   })
-  async changePassword(
-    @Body('username') username: string,
-    @Body('currentPassword') currentPassword: string,
-    @Body('newPassword') newPassword: string,
+  @ApiResponse({ status: 200, description: 'Senha alterada com sucesso.' })
+  updatePassword(
+    @Param('id') id: string,
+    @Body() body: { currentPassword: string; newPassword: string },
   ) {
-    if (!username || !currentPassword || !newPassword) {
-      throw new BadRequestException('Todos os campos são obrigatórios');
-    }
+    return this.userService.updatePassword(
+      id,
+      body.currentPassword,
+      body.newPassword,
+    );
+  }
 
-    try {
-      await this.userService.updatePassword(
-        username,
-        currentPassword,
-        newPassword,
-      );
-      return { message: 'Senha alterada com sucesso' };
-    } catch (error) {
-      throw new BadRequestException(error.message);
-    }
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Excluir um usuário',
+    description: 'Remove um usuário do sistema com base no ID informado.',
+  })
+  @ApiResponse({ status: 200, description: 'Usuário excluído com sucesso.' })
+  remove(@Param('id') id: string) {
+    return this.userService.remove(id);
   }
 }
