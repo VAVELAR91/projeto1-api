@@ -16,5 +16,6 @@ export const postgresConnectionOptions: PostgresConnectionOptions = {
 
 export const dataSource = new DataSource({
   ...postgresConnectionOptions,
-  migrations: [],
+  migrations: ['dist/migrations/*.js'], // Caminho das migrações
+  migrationsTableName: 'migrations', // Nome da tabela de controle das migrações
 });
