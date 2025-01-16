@@ -7,37 +7,48 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard'; // Substitua pelo caminho correto
+import { CredentialsDto } from './dto/credentials.dto';
+import { CredentialsCreateDto } from './dto/credentialsCreate.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Auth') // Agrupa os endpoints no Swagger
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
+  @Post('signin')
   @ApiOperation({ summary: 'Realiza o login de um usuário' })
   @ApiBody({
     description: 'Credenciais do usuário para login',
-    type: LoginDto,
+    type: CredentialsDto,
   })
-  @ApiResponse({ status: 201, description: 'Login bem-sucedido' })
+  @ApiResponse({ status: 200, description: 'Login bem-sucedido' })
   @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
-  async login(@Body() loginDto: LoginDto) {
-    const user = await this.authService.validateUser(
-      loginDto.username,
-      loginDto.password,
-    );
-    return this.authService.login(user); // Retorna o token JWT
+  async signIn(@Body() credentials: CredentialsDto) {
+    const user = await this.authService.signIn(credentials);
+    return this.authService.login(user);
+  }
+
+  @Post('signup')
+  @ApiOperation({ summary: 'Cria uma nova conta de usuário' })
+  @ApiBody({
+    description: 'Credenciais do usuário para criação de conta',
+    type: CredentialsCreateDto,
+  })
+  @ApiResponse({ status: 201, description: 'Conta criada com sucesso' })
+  @ApiResponse({ status: 400, description: 'Erro ao criar a conta' })
+  async signUp(@Body() credentials: CredentialsCreateDto) {
+    const user = await this.authService.signUp(credentials);
+    return this.authService.login(user);
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard) // Protege o endpoint com o JwtAuthGuard
-  @ApiBearerAuth() // Informa ao Swagger que este endpoint exige autenticação
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtém os dados do usuário autenticado' })
   @ApiResponse({ status: 200, description: 'Dados do usuário autenticado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   getProfile() {
-    return { message: 'Esse é um endpoint protegido' };
+    return { message: 'Dados do usuário autenticado' };
   }
 }

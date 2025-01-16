@@ -1,5 +1,5 @@
-import { User } from 'src/user/entities/user.entity';
+import { UserResponseDTO } from 'src/user/dto/userResponse.dto';
 
-export interface AuthUser extends Omit<User, 'password'> {
+export interface AuthUser extends UserResponseDTO {
   sub?: string;
 }
